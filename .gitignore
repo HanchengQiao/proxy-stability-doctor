@@ -1,0 +1,11 @@
+.DS_Store
+.env
+*.local
+*.log
+*.sqlite
+*.sqlite-*
+tmp/
+logs/
+state/
+coverage/
+

@@ -1,0 +1,108 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+PD_VERSION="0.1.0"
+PD_ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PD_LIB_DIR="$PD_ROOT_DIR/lib/proxy_doctor"
+
+usage() {
+  cat <<'USAGE'
+Usage:
+  proxy-doctor [--config FILE] [--provider NAME] [--state-dir DIR] COMMAND [FLAGS]
+
+Commands:
+  doctor              Run diagnostics.
+  status              Print compact provider status.
+  repair              Diagnose and optionally repair.
+  version             Print version.
+
+Global options:
+  --config FILE       Source a shell-style config file.
+  --provider NAME     Adapter provider name. Defaults to custom.
+  --state-dir DIR     State directory override.
+  -h, --help          Show help.
+
+Repair flags:
+  --allow-restart     Permit a provider restart if preflight passes.
+  --apply             Execute restart. Without this, repair is dry-run.
+  --force             Attempt repair even if current health is good.
+USAGE
+}
+
+PD_CONFIG_FILE=""
+COMMAND=""
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --config)
+      [ "$#" -ge 2 ] || { echo "missing value for --config" >&2; exit 2; }
+      PD_CONFIG_FILE="$2"
+      shift 2
+      ;;
+    --provider)
+      [ "$#" -ge 2 ] || { echo "missing value for --provider" >&2; exit 2; }
+      PD_PROVIDER="$2"
+      export PD_PROVIDER
+      shift 2
+      ;;
+    --state-dir)
+      [ "$#" -ge 2 ] || { echo "missing value for --state-dir" >&2; exit 2; }
+      PD_STATE_DIR="$2"
+      export PD_STATE_DIR
+      shift 2
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    doctor|status|repair|version)
+      COMMAND="$1"
+      shift
+      break
+      ;;
+    *)
+      echo "unknown option or command: $1" >&2
+      usage >&2
+      exit 2
+      ;;
+  esac
+done
+
+if [ -z "$COMMAND" ]; then
+  usage >&2
+  exit 2
+fi
+
+if [ "$COMMAND" = "version" ]; then
+  echo "$PD_VERSION"
+  exit 0
+fi
+
+# shellcheck source=../lib/proxy_doctor/core.sh
+. "$PD_LIB_DIR/core.sh"
+# shellcheck source=../lib/proxy_doctor/config.sh
+. "$PD_LIB_DIR/config.sh"
+# shellcheck source=../lib/proxy_doctor/platform/darwin_launchctl.sh
+. "$PD_LIB_DIR/platform/darwin_launchctl.sh"
+
+pd_load_config_file "$PD_CONFIG_FILE"
+pd_finalize_config
+pd_load_adapter
+
+case "$COMMAND" in
+  doctor)
+    # shellcheck source=../lib/proxy_doctor/actions/doctor.sh
+    . "$PD_LIB_DIR/actions/doctor.sh"
+    pd_action_doctor "$@"
+    ;;
+  status)
+    # shellcheck source=../lib/proxy_doctor/actions/status.sh
+    . "$PD_LIB_DIR/actions/status.sh"
+    pd_action_status "$@"
+    ;;
+  repair)
+    # shellcheck source=../lib/proxy_doctor/actions/repair.sh
+    . "$PD_LIB_DIR/actions/repair.sh"
+    pd_action_repair "$@"
+    ;;
+esac
