@@ -27,5 +27,6 @@ fi
 "$ROOT_DIR/tests/test_compact_threshold.sh"
 "$ROOT_DIR/tests/test_repair_policy.sh"
 "$ROOT_DIR/tests/test_cli_symlink.sh"
+"$ROOT_DIR/tests/test_install_script.sh"
 
 echo "all tests ok"

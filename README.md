@@ -33,68 +33,54 @@ It started as a stability script for one local setup, but the open-source versio
 
 ## Install
 
-### From Source
-
-```bash
-git clone https://github.com/HanchengQiao/proxy-stability-doctor.git
-cd proxy-stability-doctor
-./tests/run_tests.sh
-./bin/proxy-doctor version
-```
-
-### Installer
+Recommended one-line install:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/HanchengQiao/proxy-stability-doctor/main/scripts/install.sh | bash
 ```
 
-The installer places the project under:
+The installer validates the downloaded project, backs up a previous install, runs a `version` smoke check, and prints the exact next command. By default it installs to:
 
 ```text
 $HOME/.local/share/proxy-stability-doctor
-```
-
-and links the executable at:
-
-```text
 $HOME/.local/bin/proxy-doctor
 ```
 
-Make sure `$HOME/.local/bin` is on your `PATH`.
+If `$HOME/.local/bin` is not on `PATH`, the installer prints a full-path command you can run immediately.
 
 To install a tag or another branch:
 
 ```bash
-PROXY_DOCTOR_VERSION=v0.1.0 bash scripts/install.sh
-PROXY_DOCTOR_VERSION=main bash scripts/install.sh
+curl -fsSL https://raw.githubusercontent.com/HanchengQiao/proxy-stability-doctor/main/scripts/install.sh | PROXY_DOCTOR_VERSION=v0.1.0 bash
 ```
 
 ## Quick Start
 
+No config is required for the first local diagnostic:
+
 ```bash
-cp configs/proxy-doctor.example.env .env
-./bin/proxy-doctor --config .env doctor
-./bin/proxy-doctor --config .env status
-./bin/proxy-doctor --config .env repair
+proxy-doctor --agent codex doctor --no-probes
+proxy-doctor --agent claude doctor --no-probes
 ```
 
-Choose an agent profile to use built-in probe targets:
+To include outbound probe targets for an agent workflow:
 
 ```bash
-./bin/proxy-doctor --config .env --agent codex doctor
-./bin/proxy-doctor --config .env --agent claude doctor
+proxy-doctor --agent codex doctor
+proxy-doctor --agent claude doctor
 ```
 
-For diagnostic-only local checks without outbound probes:
+Use a config file only when your proxy ports, provider, probe list, or restart command need to be explicit:
 
 ```bash
-./bin/proxy-doctor --config .env doctor --no-probes
+cp "$HOME/.local/share/proxy-stability-doctor/configs/proxy-doctor.example.env" proxy-doctor.env
+proxy-doctor --config proxy-doctor.env --agent codex doctor
 ```
 
 To allow a real restart, configure `PD_RESTART_COMMAND` in a trusted local config file and run:
 
 ```bash
-./bin/proxy-doctor --config .env repair --allow-restart --apply
+proxy-doctor --config proxy-doctor.env repair --allow-restart --apply
 ```
 
 If no safe restart command is configured, repair falls back to diagnostics.
@@ -102,8 +88,8 @@ If no safe restart command is configured, repair falls back to diagnostics.
 To learn a compact threshold from actual agent behavior:
 
 ```bash
-./bin/proxy-doctor --config .env --agent codex compact observe --result failure --tokens 50000 --bytes 200000
-./bin/proxy-doctor --config .env --agent codex compact status
+proxy-doctor --agent codex compact observe --result failure --tokens 50000 --bytes 200000
+proxy-doctor --agent codex compact status
 ```
 
 ## Commands
@@ -193,7 +179,10 @@ See `docs/adapter-design.md` for the contract and contribution rules.
 ## Development
 
 ```bash
+git clone https://github.com/HanchengQiao/proxy-stability-doctor.git
+cd proxy-stability-doctor
 ./tests/run_tests.sh
+./bin/proxy-doctor version
 ```
 
 The test suite uses mock adapters and must not touch live proxy processes.

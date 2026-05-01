@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Hardened the installer with source validation, version smoke checks, reinstall backups, rollback on failure, and clearer next-step output.
+- Simplified first-run documentation so users can install once and run a no-config diagnostic immediately.
 - Added generic agent profiles for Codex/OpenAI, Claude/Anthropic, generic, and custom workflows.
 - Added learned compact-threshold suggestions based on observed success/failure metrics instead of hard-coded limits.
 - Added compact observation and log-scan commands with bounded key/value state.
