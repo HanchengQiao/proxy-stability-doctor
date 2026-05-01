@@ -22,6 +22,8 @@ if command -v shellcheck >/dev/null 2>&1; then
 fi
 
 "$ROOT_DIR/tests/test_core.sh"
+"$ROOT_DIR/tests/test_agent_profiles.sh"
+"$ROOT_DIR/tests/test_compact_threshold.sh"
 "$ROOT_DIR/tests/test_repair_policy.sh"
 "$ROOT_DIR/tests/test_cli_symlink.sh"
 

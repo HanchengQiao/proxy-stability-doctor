@@ -14,9 +14,10 @@ pd_action_doctor() {
     esac
   done
 
-  pd_append_event "doctor_start" "provider=$PD_PROVIDER"
+  pd_append_event "doctor_start" "provider=$PD_PROVIDER agent_profile=${PD_AGENT_PROFILE:-generic}"
   pd_say "proxy stability doctor"
   pd_say "provider=$(pd_adapter_name) capabilities=$(pd_adapter_capabilities)"
+  pd_say "agent_profile=${PD_AGENT_PROFILE:-generic} agent_name=${PD_AGENT_NAME:-${PD_AGENT_PROFILE:-generic}}"
   pd_say "state_dir=$PD_STATE_DIR"
   pd_say "http_proxy=$(pd_redact_url "$PD_HTTP_PROXY") http_port=${PD_HTTP_PORT:-<unset>}"
   pd_say "socks_proxy=$(pd_redact_url "$PD_SOCKS_PROXY") socks_port=${PD_SOCKS_PORT:-<unset>}"
@@ -53,11 +54,10 @@ pd_action_doctor() {
   fi
 
   if [ "$status_ok" -eq 0 ] && [ "$probe_ok" -eq 0 ]; then
-    pd_append_event "doctor_ok" "provider=$PD_PROVIDER"
+    pd_append_event "doctor_ok" "provider=$PD_PROVIDER agent_profile=${PD_AGENT_PROFILE:-generic}"
     return 0
   fi
 
-  pd_append_event "doctor_failed" "provider=$PD_PROVIDER status=$status_ok probes=$probe_ok"
+  pd_append_event "doctor_failed" "provider=$PD_PROVIDER agent_profile=${PD_AGENT_PROFILE:-generic} status=$status_ok probes=$probe_ok"
   return 1
 }
-

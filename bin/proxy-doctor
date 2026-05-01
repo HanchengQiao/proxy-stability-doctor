@@ -17,12 +17,18 @@ PD_LIB_DIR="$PD_ROOT_DIR/lib/proxy_doctor"
 usage() {
   cat <<'USAGE'
 Usage:
-  proxy-doctor [--config FILE] [--provider NAME] [--state-dir DIR] COMMAND [FLAGS]
+  proxy-doctor [--config FILE] [--provider NAME] [--agent PROFILE] [--state-dir DIR] COMMAND [FLAGS]
 
 Commands:
   doctor [--no-probes]
                       Run diagnostics.
-  status              Print compact provider status.
+  status              Print provider status and recent bounded events.
+  compact status
+                      Print learned compact threshold suggestions.
+  compact observe --result success|failure [--tokens N] [--bytes N] [--source TEXT] [--reason TEXT]
+                      Record a bounded compact observation.
+  compact scan --log-file FILE
+                      Scan a local agent log for compact observations.
   repair [--dry-run] [--allow-restart --apply] [--force]
                       Diagnose and optionally repair.
   version             Print version.
@@ -30,6 +36,7 @@ Commands:
 Global options:
   --config FILE       Source a shell-style config file.
   --provider NAME     Adapter provider name. Defaults to custom.
+  --agent PROFILE     Agent probe profile: generic, codex, claude, or custom.
   --state-dir DIR     State directory override.
   -h, --help          Show help.
 
@@ -70,7 +77,13 @@ while [ "$#" -gt 0 ]; do
       usage
       exit 0
       ;;
-    doctor|status|repair|version)
+    --agent)
+      [ "$#" -ge 2 ] || { echo "missing value for --agent" >&2; exit 2; }
+      PD_AGENT_PROFILE="$2"
+      export PD_AGENT_PROFILE
+      shift 2
+      ;;
+    doctor|status|compact|repair|version)
       COMMAND="$1"
       shift
       break
@@ -114,6 +127,11 @@ case "$COMMAND" in
     # shellcheck source=../lib/proxy_doctor/actions/status.sh
     . "$PD_LIB_DIR/actions/status.sh"
     pd_action_status "$@"
+    ;;
+  compact)
+    # shellcheck source=../lib/proxy_doctor/actions/compact.sh
+    . "$PD_LIB_DIR/actions/compact.sh"
+    pd_action_compact "$@"
     ;;
   repair)
     # shellcheck source=../lib/proxy_doctor/actions/repair.sh

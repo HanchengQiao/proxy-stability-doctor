@@ -6,5 +6,6 @@
 
 api.openai.com models|https://api.openai.com/v1/models|200,401,403
 chatgpt.com home|https://chatgpt.com/|200,301,302,307,308,403
+anthropic messages|https://api.anthropic.com/v1/messages|200,401,403,404,405
+claude home|https://claude.ai/|200,301,302,307,308,403
 example.com|https://example.com/|200
-

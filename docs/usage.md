@@ -14,9 +14,17 @@ The normal workflow is:
 proxy-doctor --config .env doctor
 ```
 
+Use an agent profile to select built-in probes for a workflow:
+
+```bash
+proxy-doctor --config .env --agent codex doctor
+proxy-doctor --config .env --agent claude doctor
+```
+
 This reports:
 
 - Provider and adapter capabilities.
+- Agent profile and display name.
 - Redacted HTTP/SOCKS proxy settings.
 - Local port listening state.
 - macOS `launchctl` proxy environment when available.
@@ -29,13 +37,36 @@ To stay fully local and skip outbound probes:
 proxy-doctor --config .env doctor --no-probes
 ```
 
-## Compact Status
+## Provider Status
 
 ```bash
 proxy-doctor --config .env status
 ```
 
-`status` prints provider health and the latest compact events from the state directory. Event logs are bounded by line count and per-line byte count.
+`status` prints provider health and the latest bounded events from the state directory. Event logs are bounded by total bytes and per-line bytes.
+
+## Learned Compact Threshold
+
+```bash
+proxy-doctor --config .env --agent codex compact status
+```
+
+`compact status` prints the current learned token and byte suggestions for the selected agent profile. Empty state reports insufficient data rather than guessing a fixed threshold.
+
+Record observations manually when an agent compact succeeds or fails:
+
+```bash
+proxy-doctor --config .env --agent codex compact observe --result success --tokens 40000 --bytes 160000
+proxy-doctor --config .env --agent codex compact observe --result failure --tokens 50000 --bytes 200000
+```
+
+Import observations from a local log when it contains compact-related token or visible-byte metrics:
+
+```bash
+proxy-doctor --config .env --agent claude compact scan --log-file /path/to/agent.log
+```
+
+The scanner keeps only bounded key/value metrics such as result, token count, byte count, source, and timestamp. It does not persist raw log lines.
 
 ## Dry-Run Repair
 
@@ -82,4 +113,3 @@ PD_ADAPTER_PATH=/path/to/my-provider-adapter.sh proxy-doctor --config .env docto
 ```
 
 External adapters should follow the same safety rules as built-in adapters. See `docs/adapter-design.md`.
-

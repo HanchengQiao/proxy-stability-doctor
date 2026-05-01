@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/HanchengQiao/proxy-stability-doctor/actions/workflows/ci.yml/badge.svg)](https://github.com/HanchengQiao/proxy-stability-doctor/actions/workflows/ci.yml)
 
-Proxy Stability Doctor is an adapter-first CLI for diagnosing local HTTP/SOCKS proxy health and running guarded repair flows only when a provider exposes a safe restart surface.
+Proxy Stability Doctor is an adapter-first CLI for diagnosing local HTTP/SOCKS proxy health for coding agents, browsers, API clients, and other developer workflows. It runs guarded repair flows only when a provider exposes a safe restart surface.
 
 It started as a stability script for one local setup, but the open-source version treats ports, providers, probes, and restart commands as configuration. The default behavior is diagnostic. Repair remains a dry run unless the user explicitly enables restart and the selected adapter confirms preflight safety.
 
@@ -19,10 +19,12 @@ It started as a stability script for one local setup, but the open-source versio
 - Generic `custom` adapter for any local proxy with configured HTTP/SOCKS endpoints.
 - Diagnostic-first `falemon` adapter that does not kill live Falemon processes by default.
 - Configurable HTTP proxy, SOCKS proxy, explicit ports, probe targets, and state directory.
-- `doctor`, `status`, `repair`, and `version` commands.
+- Agent profiles for generic, Codex/OpenAI, Claude/Anthropic, and custom workflows.
+- `doctor`, `status`, `compact`, `repair`, and `version` commands.
 - `repair` is dry-run by default and requires both `--allow-restart` and `--apply` for live restart.
 - Post-restart verification checks adapter status and outbound probes before reporting success.
-- Bounded compact event logs with redacted proxy credentials.
+- Learned compact-threshold suggestions from real success/failure observations instead of hard-coded limits.
+- Bounded diagnostic event logs with redacted proxy credentials.
 - macOS `launchctl` proxy environment visibility when available.
 - Bash test suite with mock adapters, designed to avoid touching live proxy processes.
 
@@ -73,6 +75,13 @@ cp configs/proxy-doctor.example.env .env
 ./bin/proxy-doctor --config .env repair
 ```
 
+Choose an agent profile to use built-in probe targets:
+
+```bash
+./bin/proxy-doctor --config .env --agent codex doctor
+./bin/proxy-doctor --config .env --agent claude doctor
+```
+
 For diagnostic-only local checks without outbound probes:
 
 ```bash
@@ -87,14 +96,24 @@ To allow a real restart, configure `PD_RESTART_COMMAND` in a trusted local confi
 
 If no safe restart command is configured, repair falls back to diagnostics.
 
+To learn a compact threshold from actual agent behavior:
+
+```bash
+./bin/proxy-doctor --config .env --agent codex compact observe --result failure --tokens 50000 --bytes 200000
+./bin/proxy-doctor --config .env --agent codex compact status
+```
+
 ## Commands
 
 ```text
-proxy-doctor [--config FILE] [--provider NAME] [--state-dir DIR] COMMAND [FLAGS]
+proxy-doctor [--config FILE] [--provider NAME] [--agent PROFILE] [--state-dir DIR] COMMAND [FLAGS]
 ```
 
 - `doctor [--no-probes]`: run environment, port, adapter, and network checks.
-- `status`: print compact provider status and recent bounded events.
+- `status`: print provider status and recent bounded events.
+- `compact status`: print learned compact-threshold suggestions for the selected agent profile.
+- `compact observe --result success|failure [--tokens N] [--bytes N]`: record a compact observation.
+- `compact scan --log-file FILE`: import compact observations from a local agent log without storing raw log lines.
 - `repair [--dry-run] [--allow-restart --apply] [--force]`: diagnose first, optionally restart, then verify health.
 - `version`: print the CLI version.
 
@@ -105,13 +124,17 @@ The CLI reads a shell-style config file with `--config FILE`. Environment variab
 Important variables:
 
 - `PD_PROVIDER`: adapter name, defaults to `custom`.
+- `PD_AGENT_PROFILE`: agent profile, defaults to `generic`. Built-ins include `codex` and `claude`.
+- `PD_AGENT_NAME`: optional display name for local reporting.
 - `PD_HTTP_PROXY`: HTTP proxy URL. Falls back to `HTTP_PROXY` or `http_proxy`.
 - `PD_SOCKS_PROXY`: SOCKS proxy URL. Falls back to `ALL_PROXY` or `all_proxy`.
 - `PD_HTTP_PORT`: optional explicit HTTP local port.
 - `PD_SOCKS_PORT`: optional explicit SOCKS local port.
 - `PD_PROBE_TARGETS_FILE`: optional probe target file.
 - `PD_RESTART_COMMAND`: trusted local shell command for adapter restart.
-- `PD_STATE_DIR`: state and compact event log directory.
+- `PD_STATE_DIR`: state and bounded event log directory.
+- `PD_COMPACT_OBSERVATION_LOG`: bounded compact observation log path.
+- `PD_COMPACT_STATE`: learned compact-threshold state path.
 
 Examples:
 
@@ -148,7 +171,7 @@ See `docs/adapter-design.md` for the contract and contribution rules.
 ## Documentation
 
 - `docs/configuration.md`: config variables, probe target format, and examples.
-- `docs/usage.md`: day-to-day diagnostic and repair workflows.
+- `docs/usage.md`: day-to-day diagnostic, compact-threshold, and repair workflows.
 - `docs/adapter-design.md`: adapter contract and safe restart guidance.
 - `docs/migration-plan.md`: how the original local script was split into core and adapters.
 - `SECURITY.md`: security expectations and reporting guidance.
@@ -157,10 +180,10 @@ See `docs/adapter-design.md` for the contract and contribution rules.
 ## Roadmap
 
 - More provider adapters with diagnostic-only fallback when safe restart is unavailable.
+- More agent profile presets for common developer workflows.
 - JSON output for automation and dashboards.
 - Packaged releases for Homebrew and other package managers.
 - Linux systemd environment visibility helpers.
-- Optional richer probe sets for common developer workflows.
 
 ## Development
 
@@ -169,4 +192,3 @@ See `docs/adapter-design.md` for the contract and contribution rules.
 ```
 
 The test suite uses mock adapters and must not touch live proxy processes.
-
