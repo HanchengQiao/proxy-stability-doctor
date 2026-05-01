@@ -20,12 +20,14 @@ Configuration files are trusted local input. Do not use untrusted files, because
 | `PD_SOCKS_PROXY` | `ALL_PROXY` or `all_proxy` | SOCKS proxy URL such as `socks5h://127.0.0.1:7891`. |
 | `PD_HTTP_PORT` | parsed from `PD_HTTP_PROXY` | Explicit local HTTP port. |
 | `PD_SOCKS_PORT` | parsed from `PD_SOCKS_PROXY` | Explicit local SOCKS port. |
-| `PD_STATE_DIR` | `$XDG_STATE_HOME/proxy-stability-doctor` or `$HOME/.local/state/proxy-stability-doctor` | State, event log, learned compact state, and lock directory. |
+| `PD_STATE_DIR` | first writable state path | State, event log, learned compact state, and lock directory. |
 | `PD_ACTION_LOG` | `$PD_STATE_DIR/actions.log` | Bounded action event log path. |
 | `PD_COMPACT_OBSERVATION_LOG` | `$PD_STATE_DIR/compact-observations.log` | Bounded compact observation log path. |
 | `PD_COMPACT_STATE` | `$PD_STATE_DIR/compact-threshold.state` | Current learned compact-threshold suggestion state. |
 | `PD_MAX_LOG_BYTES` | `262144` | Maximum retained bytes for bounded logs. |
 | `PD_MAX_LOG_LINE_BYTES` | `2000` | Maximum bytes retained per event or observation line. |
+| `PD_COMPACT_SCAN_MAX_BYTES` | `1048576` | Maximum bytes read from the tail of a local log during `compact scan`. |
+| `PD_COMPACT_SCAN_MAX_OBSERVATIONS` | `200` | Maximum compact observations imported in one `compact scan` run. |
 | `PD_PROBE_CONNECT_TIMEOUT` | `5` | Curl connect timeout for outbound probe requests. |
 | `PD_PROBE_MAX_TIME` | `15` | Curl total timeout for outbound probe requests. |
 | `PD_PROBE_TARGETS_FILE` | unset | Custom probe target file. |
@@ -34,6 +36,18 @@ Configuration files are trusted local input. Do not use untrusted files, because
 | `PD_RESTART_WAIT_SECONDS` | `25` | Maximum wait time for post-restart health verification. |
 | `PD_COMPACT_FAILURE_MARGIN_PERCENT` | `80` | Suggested compact limit as a percentage below the lowest observed failure. |
 | `PD_COMPACT_SUCCESS_MARGIN_PERCENT` | `90` | Low-confidence suggested compact limit as a percentage below the highest observed success when no failures exist yet. |
+
+## State Directory Selection
+
+If `PD_STATE_DIR` is set explicitly, Proxy Stability Doctor treats it as a strict user choice and fails when the path cannot be created or written.
+
+If `PD_STATE_DIR` is not set, the CLI selects the first writable path from:
+
+1. `$XDG_STATE_HOME/proxy-stability-doctor`
+2. `$HOME/.local/state/proxy-stability-doctor`
+3. `$TMPDIR/proxy-stability-doctor-$UID`
+
+The temporary fallback keeps diagnostics usable in restricted environments, but persistent installs should set a stable `PD_STATE_DIR`.
 
 ## Proxy URL Examples
 
@@ -136,4 +150,4 @@ proxy-doctor --config .env --agent codex compact status
 
 If failures exist, the suggestion is below the lowest observed failure using `PD_COMPACT_FAILURE_MARGIN_PERCENT`. If only successes exist, the suggestion is below the highest observed success using `PD_COMPACT_SUCCESS_MARGIN_PERCENT` and is marked low confidence.
 
-`compact scan --log-file FILE` can import bounded metrics from local logs. It stores compact key/value observations, not raw log lines.
+`compact scan --log-file FILE` can import bounded metrics from local logs. It stores compact key/value observations, not raw log lines. By default it scans only the last `1048576` bytes of the file and imports at most `200` observations per run. Tune `PD_COMPACT_SCAN_MAX_BYTES` and `PD_COMPACT_SCAN_MAX_OBSERVATIONS` for larger or smaller local logs.

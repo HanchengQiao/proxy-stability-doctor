@@ -18,7 +18,7 @@ pd_action_doctor() {
   pd_say "proxy stability doctor"
   pd_say "provider=$(pd_adapter_name) capabilities=$(pd_adapter_capabilities)"
   pd_say "agent_profile=${PD_AGENT_PROFILE:-generic} agent_name=${PD_AGENT_NAME:-${PD_AGENT_PROFILE:-generic}}"
-  pd_say "state_dir=$PD_STATE_DIR"
+  pd_say "state_dir=$PD_STATE_DIR state_source=${PD_STATE_DIR_SOURCE:-unknown}"
   pd_say "http_proxy=$(pd_redact_url "$PD_HTTP_PROXY") http_port=${PD_HTTP_PORT:-<unset>}"
   pd_say "socks_proxy=$(pd_redact_url "$PD_SOCKS_PROXY") socks_port=${PD_SOCKS_PORT:-<unset>}"
   pd_say "no_proxy=$PD_NO_PROXY"

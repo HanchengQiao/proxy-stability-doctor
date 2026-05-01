@@ -54,12 +54,16 @@ pd_url_port() {
 }
 
 pd_ensure_state_dir() {
-  mkdir -p "$PD_STATE_DIR"
+  [ -n "${PD_STATE_DIR:-}" ] || pd_die "PD_STATE_DIR is not set"
+  mkdir -p "$PD_STATE_DIR" 2>/dev/null || pd_die "could not create state directory: $PD_STATE_DIR"
+  [ -d "$PD_STATE_DIR" ] || pd_die "state path is not a directory: $PD_STATE_DIR"
+  [ -w "$PD_STATE_DIR" ] || pd_die "state directory is not writable: $PD_STATE_DIR"
 }
 
 pd_trim_file() {
   file="$1"
   max_bytes="$2"
+  pd_is_positive_int "$max_bytes" || max_bytes=262144
   [ -f "$file" ] || return 0
   size="$(wc -c < "$file" | tr -d ' ')"
   [ "$size" -le "$max_bytes" ] && return 0
@@ -228,6 +232,26 @@ pd_compact_observe() {
     pd_die "compact observation needs --tokens or --bytes"
   fi
 
+  pd_compact_append_observation "$pd_compact_result" "$pd_compact_tokens" "$pd_compact_bytes" "$pd_compact_source" "$pd_compact_reason"
+  pd_compact_recalculate
+}
+
+pd_compact_append_observation() {
+  pd_compact_result="${1:-}"
+  pd_compact_tokens="${2:-}"
+  pd_compact_bytes="${3:-}"
+  pd_compact_source="$(pd_sanitize_compact_field "${4:-manual}")"
+  pd_compact_reason="$(pd_sanitize_compact_field "${5:-observed}")"
+
+  case "$pd_compact_result" in
+    success|failure) ;;
+    *) pd_die "compact result must be success or failure" ;;
+  esac
+
+  if ! pd_is_positive_int "$pd_compact_tokens" && ! pd_is_positive_int "$pd_compact_bytes"; then
+    pd_die "compact observation needs --tokens or --bytes"
+  fi
+
   pd_ensure_state_dir
   pd_compact_line="$(printf 'ts=%s agent_profile=%s result=%s tokens=%s bytes=%s source=%s reason=%s' \
     "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" \
@@ -239,7 +263,6 @@ pd_compact_observe() {
     "$pd_compact_reason")"
   printf '%s\n' "$pd_compact_line" >> "$PD_COMPACT_OBSERVATION_LOG"
   pd_trim_file "$PD_COMPACT_OBSERVATION_LOG" "${PD_MAX_LOG_BYTES:-262144}"
-  pd_compact_recalculate
 }
 
 pd_compact_result_from_line() {
@@ -260,13 +283,14 @@ pd_compact_result_from_line() {
   return 1
 }
 
-pd_compact_scan_log() {
-  pd_compact_file="${1:-}"
-  [ -f "$pd_compact_file" ] || pd_die "compact log file not found: $pd_compact_file"
+pd_compact_scan_stream() {
+  pd_compact_source="${1:-scan}"
+  pd_compact_scan_max_observations="${2:-200}"
   pd_compact_count=0
-  pd_compact_source="scan:$(basename "$pd_compact_file")"
+  pd_is_positive_int "$pd_compact_scan_max_observations" || pd_compact_scan_max_observations=200
 
   while IFS= read -r pd_compact_line; do
+    [ "$pd_compact_count" -lt "$pd_compact_scan_max_observations" ] || continue
     printf '%s\n' "$pd_compact_line" | grep -Eiq 'compact|compaction|context' || continue
     pd_compact_result="$(pd_compact_result_from_line "$pd_compact_line" || true)"
     [ -n "$pd_compact_result" ] || continue
@@ -275,10 +299,31 @@ pd_compact_scan_log() {
     if ! pd_is_positive_int "$pd_compact_tokens" && ! pd_is_positive_int "$pd_compact_bytes"; then
       continue
     fi
-    pd_compact_observe "$pd_compact_result" "$pd_compact_tokens" "$pd_compact_bytes" "$pd_compact_source" "scanned_log"
+    pd_compact_append_observation "$pd_compact_result" "$pd_compact_tokens" "$pd_compact_bytes" "$pd_compact_source" "scanned_log"
     pd_compact_count=$((pd_compact_count + 1))
-  done < "$pd_compact_file"
+  done
 
+  printf '%s\n' "$pd_compact_count"
+}
+
+pd_compact_scan_log() {
+  pd_compact_file="${1:-}"
+  [ -n "$pd_compact_file" ] || pd_die "compact log file is required"
+  [ -f "$pd_compact_file" ] || pd_die "compact log file not found: $pd_compact_file"
+  pd_compact_source="scan:$(basename "$pd_compact_file")"
+  pd_compact_scan_max_bytes="${PD_COMPACT_SCAN_MAX_BYTES:-1048576}"
+  pd_compact_scan_max_observations="${PD_COMPACT_SCAN_MAX_OBSERVATIONS:-200}"
+  pd_is_positive_int "$pd_compact_scan_max_bytes" || pd_compact_scan_max_bytes=1048576
+  pd_is_positive_int "$pd_compact_scan_max_observations" || pd_compact_scan_max_observations=200
+  pd_compact_scan_size="$(wc -c < "$pd_compact_file" | tr -d ' ')"
+
+  if pd_is_positive_int "$pd_compact_scan_size" && [ "$pd_compact_scan_size" -gt "$pd_compact_scan_max_bytes" ]; then
+    pd_compact_count="$(tail -c "$pd_compact_scan_max_bytes" "$pd_compact_file" | pd_compact_scan_stream "$pd_compact_source" "$pd_compact_scan_max_observations")"
+  else
+    pd_compact_count="$(pd_compact_scan_stream "$pd_compact_source" "$pd_compact_scan_max_observations" < "$pd_compact_file")"
+  fi
+
+  pd_compact_recalculate
   printf '%s\n' "$pd_compact_count"
 }
 

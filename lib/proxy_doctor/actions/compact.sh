@@ -32,6 +32,8 @@ pd_action_compact_status() {
   pd_say "observations=${pd_compact_observations:-0} success=${pd_compact_success_count:-0} failure=${pd_compact_failure_count:-0}"
   pd_say "suggested_token_limit=${pd_compact_tokens:-<insufficient>} suggested_byte_limit=${pd_compact_bytes:-<insufficient>}"
   pd_say "confidence=${pd_compact_confidence:-insufficient} basis=${pd_compact_basis:-no_observations}"
+  pd_say "state_dir=$PD_STATE_DIR state_source=${PD_STATE_DIR_SOURCE:-unknown}"
+  pd_say "scan_max_bytes=${PD_COMPACT_SCAN_MAX_BYTES:-1048576} scan_max_observations=${PD_COMPACT_SCAN_MAX_OBSERVATIONS:-200}"
   pd_say "state=$PD_COMPACT_STATE"
 }
 
@@ -107,7 +109,7 @@ pd_action_compact_scan() {
 
   [ -n "$pd_compact_file" ] || pd_die "compact scan requires --log-file FILE"
   pd_compact_imported="$(pd_compact_scan_log "$pd_compact_file")"
-  pd_say "compact scan imported observations=$pd_compact_imported"
+  pd_say "compact scan imported observations=$pd_compact_imported max_observations=${PD_COMPACT_SCAN_MAX_OBSERVATIONS:-200}"
   pd_action_compact_status
 }
 

@@ -43,7 +43,7 @@ proxy-doctor --config .env doctor --no-probes
 proxy-doctor --config .env status
 ```
 
-`status` prints provider health and the latest bounded events from the state directory. Event logs are bounded by total bytes and per-line bytes.
+`status` prints provider health, the active state directory, how that directory was selected, and the latest bounded events from the state directory. Event logs are bounded by total bytes and per-line bytes.
 
 ## Learned Compact Threshold
 
@@ -67,6 +67,8 @@ proxy-doctor --config .env --agent claude compact scan --log-file /path/to/agent
 ```
 
 The scanner keeps only bounded key/value metrics such as result, token count, byte count, source, and timestamp. It does not persist raw log lines.
+
+By default, a scan reads only the recent tail of the log and imports a limited number of observations. Tune `PD_COMPACT_SCAN_MAX_BYTES` and `PD_COMPACT_SCAN_MAX_OBSERVATIONS` when you need a wider historical import.
 
 ## Dry-Run Repair
 

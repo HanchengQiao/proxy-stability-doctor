@@ -5,6 +5,8 @@
 - Added generic agent profiles for Codex/OpenAI, Claude/Anthropic, generic, and custom workflows.
 - Added learned compact-threshold suggestions based on observed success/failure metrics instead of hard-coded limits.
 - Added compact observation and log-scan commands with bounded key/value state.
+- Added automatic writable state-directory selection with source reporting and strict validation for explicit paths.
+- Improved compact log scans with recent-tail limits, observation caps, and a single batched threshold recalculation.
 
 ## 0.1.0 - 2026-05-01
 

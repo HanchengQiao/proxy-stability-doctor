@@ -19,11 +19,13 @@ It started as a stability script for one local setup, but the open-source versio
 - Generic `custom` adapter for any local proxy with configured HTTP/SOCKS endpoints.
 - Diagnostic-first `falemon` adapter that does not kill live Falemon processes by default.
 - Configurable HTTP proxy, SOCKS proxy, explicit ports, probe targets, and state directory.
+- Resilient state-directory selection with visible source reporting for restricted environments.
 - Agent profiles for generic, Codex/OpenAI, Claude/Anthropic, and custom workflows.
 - `doctor`, `status`, `compact`, `repair`, and `version` commands.
 - `repair` is dry-run by default and requires both `--allow-restart` and `--apply` for live restart.
 - Post-restart verification checks adapter status and outbound probes before reporting success.
 - Learned compact-threshold suggestions from real success/failure observations instead of hard-coded limits.
+- Bounded, batched compact log scanning that reads recent metrics without storing raw log lines.
 - Bounded diagnostic event logs with redacted proxy credentials.
 - macOS `launchctl` proxy environment visibility when available.
 - Bash test suite with mock adapters, designed to avoid touching live proxy processes.
@@ -113,7 +115,7 @@ proxy-doctor [--config FILE] [--provider NAME] [--agent PROFILE] [--state-dir DI
 - `status`: print provider status and recent bounded events.
 - `compact status`: print learned compact-threshold suggestions for the selected agent profile.
 - `compact observe --result success|failure [--tokens N] [--bytes N]`: record a compact observation.
-- `compact scan --log-file FILE`: import compact observations from a local agent log without storing raw log lines.
+- `compact scan --log-file FILE`: import bounded compact observations from the recent tail of a local agent log without storing raw log lines.
 - `repair [--dry-run] [--allow-restart --apply] [--force]`: diagnose first, optionally restart, then verify health.
 - `version`: print the CLI version.
 
@@ -132,9 +134,11 @@ Important variables:
 - `PD_SOCKS_PORT`: optional explicit SOCKS local port.
 - `PD_PROBE_TARGETS_FILE`: optional probe target file.
 - `PD_RESTART_COMMAND`: trusted local shell command for adapter restart.
-- `PD_STATE_DIR`: state and bounded event log directory.
+- `PD_STATE_DIR`: state and bounded event log directory. When unset, the CLI chooses the first writable user-state path and reports the source.
 - `PD_COMPACT_OBSERVATION_LOG`: bounded compact observation log path.
 - `PD_COMPACT_STATE`: learned compact-threshold state path.
+- `PD_COMPACT_SCAN_MAX_BYTES`: maximum recent log bytes read by `compact scan`.
+- `PD_COMPACT_SCAN_MAX_OBSERVATIONS`: maximum observations imported by one `compact scan`.
 
 Examples:
 
