@@ -2,7 +2,16 @@
 set -euo pipefail
 
 PD_VERSION="0.1.0"
-PD_ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PD_SOURCE="${BASH_SOURCE[0]}"
+while [ -L "$PD_SOURCE" ]; do
+  PD_SOURCE_DIR="$(cd -P "$(dirname "$PD_SOURCE")" && pwd)"
+  PD_SOURCE_TARGET="$(readlink "$PD_SOURCE")"
+  case "$PD_SOURCE_TARGET" in
+    /*) PD_SOURCE="$PD_SOURCE_TARGET" ;;
+    *) PD_SOURCE="$PD_SOURCE_DIR/$PD_SOURCE_TARGET" ;;
+  esac
+done
+PD_ROOT_DIR="$(cd -P "$(dirname "$PD_SOURCE")/.." && pwd)"
 PD_LIB_DIR="$PD_ROOT_DIR/lib/proxy_doctor"
 
 usage() {
@@ -11,9 +20,11 @@ Usage:
   proxy-doctor [--config FILE] [--provider NAME] [--state-dir DIR] COMMAND [FLAGS]
 
 Commands:
-  doctor              Run diagnostics.
+  doctor [--no-probes]
+                      Run diagnostics.
   status              Print compact provider status.
-  repair              Diagnose and optionally repair.
+  repair [--dry-run] [--allow-restart --apply] [--force]
+                      Diagnose and optionally repair.
   version             Print version.
 
 Global options:
@@ -22,7 +33,11 @@ Global options:
   --state-dir DIR     State directory override.
   -h, --help          Show help.
 
+Doctor flags:
+  --no-probes         Skip outbound network probes and keep local diagnostics only.
+
 Repair flags:
+  --dry-run           Diagnose only. This is the default repair mode.
   --allow-restart     Permit a provider restart if preflight passes.
   --apply             Execute restart. Without this, repair is dry-run.
   --force             Attempt repair even if current health is good.

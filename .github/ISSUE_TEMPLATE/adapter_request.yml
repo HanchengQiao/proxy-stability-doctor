@@ -1,0 +1,39 @@
+name: Adapter request
+description: Request support for another proxy provider.
+title: "[Adapter]: "
+labels: ["enhancement"]
+body:
+  - type: input
+    id: provider
+    attributes:
+      label: Provider name
+      placeholder: "Provider or app name"
+    validations:
+      required: true
+  - type: textarea
+    id: status
+    attributes:
+      label: Read-only status signals
+      description: What ports, commands, files, or APIs can prove the provider is healthy without modifying it?
+    validations:
+      required: true
+  - type: textarea
+    id: restart
+    attributes:
+      label: Safe restart interface
+      description: Does the provider expose a safe restart command, service manager hook, or local API?
+    validations:
+      required: true
+  - type: textarea
+    id: fallback
+    attributes:
+      label: Diagnostic fallback
+      description: What should the adapter report when restart is unavailable?
+    validations:
+      required: true
+  - type: textarea
+    id: config
+    attributes:
+      label: Common local configuration
+      description: Include common HTTP/SOCKS ports or environment variables, with secrets removed.
+      render: shell

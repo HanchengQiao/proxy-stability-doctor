@@ -1,0 +1,10 @@
+# Probe target format:
+# label|url|allowed_status_codes
+#
+# A 401 or 403 can be healthy for authenticated endpoints if it proves that
+# the proxy reached the service and received a controlled response.
+
+api.openai.com models|https://api.openai.com/v1/models|200,401,403
+chatgpt.com home|https://chatgpt.com/|200,301,302,307,308,403
+example.com|https://example.com/|200
+

@@ -1,0 +1,46 @@
+name: Bug report
+description: Report a reproducible problem with diagnostics, status, or repair behavior.
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What happened?
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      placeholder: "v0.1.0 or commit SHA"
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      placeholder: "macOS 15.4, Ubuntu 24.04, etc."
+    validations:
+      required: true
+  - type: input
+    id: adapter
+    attributes:
+      label: Adapter
+      placeholder: "custom, falemon, or external adapter path"
+    validations:
+      required: true
+  - type: textarea
+    id: config
+    attributes:
+      label: Redacted configuration
+      description: Paste only redacted proxy URLs and relevant PD_* variables.
+      render: shell
+  - type: textarea
+    id: logs
+    attributes:
+      label: Redacted output
+      description: Paste bounded, redacted CLI output. Do not include secrets or local state dumps.
+      render: text
+
