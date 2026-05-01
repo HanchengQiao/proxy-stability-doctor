@@ -2,12 +2,13 @@
 
 [![CI](https://github.com/HanchengQiao/proxy-stability-doctor/actions/workflows/ci.yml/badge.svg)](https://github.com/HanchengQiao/proxy-stability-doctor/actions/workflows/ci.yml)
 
-Proxy Stability Doctor is an adapter-first CLI for diagnosing local HTTP/SOCKS proxy health for coding agents, browsers, API clients, and other developer workflows. It runs guarded repair flows only when a provider exposes a safe restart surface.
+Proxy Stability Doctor is an adapter-first CLI for diagnosing local HTTP/SOCKS proxy health for coding agents, browsers, API clients, and other developer workflows. It is built for practical agent stability problems, including Codex or Claude Code sessions that reconnect several times before a task can actually start because the local proxy path is stale, unhealthy, or inconsistently exported. It runs guarded repair flows only when a provider exposes a safe restart surface.
 
 It started as a stability script for one local setup, but the open-source version treats ports, providers, probes, and restart commands as configuration. The default behavior is diagnostic. Repair remains a dry run unless the user explicitly enables restart and the selected adapter confirms preflight safety.
 
 ## Who It Is For
 
+- Codex, Claude Code, and other agent users who see repeated reconnects before a task starts and want to separate local proxy issues from upstream service issues.
 - Developers who depend on local proxies for coding tools, browsers, API clients, or AI tooling.
 - Users whose HTTP and SOCKS ports differ from common defaults.
 - Teams that want provider-specific adapters without baking private machine paths into a shared script.
