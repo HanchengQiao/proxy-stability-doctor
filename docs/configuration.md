@@ -14,7 +14,7 @@ Configuration files are trusted local input. Do not use untrusted files, because
 | --- | --- | --- |
 | `PD_PROVIDER` | `custom` | Adapter name from `lib/proxy_doctor/adapters/`. |
 | `PD_ADAPTER_PATH` | unset | Absolute or relative path to an external adapter file. Takes precedence over `PD_PROVIDER`. |
-| `PD_AGENT_PROFILE` | `generic` | Agent workflow profile used for built-in probes and learned compact thresholds. Built-ins include `generic`, `codex`, and `claude`. |
+| `PD_AGENT_PROFILE` | `generic` | Agent workflow profile used for built-in probes and learned compact thresholds. Built-ins include `generic`, `codex`, `claude-code`, and `custom`; common aliases are normalized. |
 | `PD_AGENT_NAME` | `PD_AGENT_PROFILE` | Optional display name for local reporting. |
 | `PD_HTTP_PROXY` | `HTTP_PROXY` or `http_proxy` | HTTP proxy URL such as `http://127.0.0.1:7890`. |
 | `PD_SOCKS_PROXY` | `ALL_PROXY` or `all_proxy` | SOCKS proxy URL such as `socks5h://127.0.0.1:7891`. |
@@ -36,6 +36,14 @@ Configuration files are trusted local input. Do not use untrusted files, because
 | `PD_RESTART_WAIT_SECONDS` | `25` | Maximum wait time for post-restart health verification. |
 | `PD_COMPACT_FAILURE_MARGIN_PERCENT` | `80` | Suggested compact limit as a percentage below the lowest observed failure. |
 | `PD_COMPACT_SUCCESS_MARGIN_PERCENT` | `90` | Low-confidence suggested compact limit as a percentage below the highest observed success when no failures exist yet. |
+
+## Runtime Tool Availability
+
+Proxy Stability Doctor stays usable when optional system tools are missing, but it reports the limitation explicitly:
+
+- `curl` is required for outbound probes. If it is missing, probe commands fail with a clear tool warning. Use `doctor --no-probes` or `repair --no-probes` for local-only diagnostics.
+- `lsof` or `nc` is required for local port checks. If both are missing, port health is reported as unknown and adapters can fail or warn depending on the configured health signals.
+- `pgrep` is preferred for process discovery; `ps` is used as a fallback when available.
 
 ## State Directory Selection
 
@@ -74,14 +82,14 @@ http://***@127.0.0.1:7890
 
 ```bash
 proxy-doctor --config .env --agent codex doctor
-proxy-doctor --config .env --agent claude doctor
+proxy-doctor --config .env --agent claude-code doctor
 ```
 
 Built-in profiles:
 
 - `generic`: probes `https://example.com/`.
-- `codex` or `openai`: probes OpenAI API and ChatGPT reachability.
-- `claude`, `claude-code`, or `anthropic`: probes Anthropic API and Claude reachability.
+- `codex`: probes OpenAI API and ChatGPT reachability. Aliases include `openai`, `chatgpt`, `codex-cli`, and `openai-codex`.
+- `claude-code`: probes Anthropic API and Claude reachability. Aliases include `claude`, `claudecode`, and `anthropic`.
 - `custom`: uses the generic fallback unless `PD_PROBE_TARGETS_FILE` is set.
 
 Use `PD_PROBE_TARGETS_FILE` when a team needs a different or private target set.
@@ -138,6 +146,18 @@ PD_SOCKS_PORT=10793
 
 Only add `PD_RESTART_COMMAND` if you have a safe provider-owned restart interface and have tested it locally.
 
+Falemon process checks are configurable because installed paths and process names can differ:
+
+```bash
+PD_FALEMON_REQUIRE_PROCESSES=1
+PD_FALEMON_CHECK_HTTP_PROCESS=1
+PD_FALEMON_CHECK_LF_PROCESS=1
+PD_FALEMON_HTTP_PATTERN="$PD_FALEMON_HTTP_BIN"
+PD_FALEMON_LF_PATTERN="$PD_FALEMON_LF_BIN"
+```
+
+Required process checks and configured ports are treated as hard health signals. If process checks are disabled and no ports are configured, the adapter fails instead of reporting a false healthy state.
+
 ## Compact Threshold Detector
 
 The compact detector does not ship a fixed token threshold. It learns a per-agent suggestion from observed compact results:
@@ -150,4 +170,4 @@ proxy-doctor --config .env --agent codex compact status
 
 If failures exist, the suggestion is below the lowest observed failure using `PD_COMPACT_FAILURE_MARGIN_PERCENT`. If only successes exist, the suggestion is below the highest observed success using `PD_COMPACT_SUCCESS_MARGIN_PERCENT` and is marked low confidence.
 
-`compact scan --log-file FILE` can import bounded metrics from local logs. It stores compact key/value observations, not raw log lines. By default it scans only the last `1048576` bytes of the file and imports at most `200` observations per run. Tune `PD_COMPACT_SCAN_MAX_BYTES` and `PD_COMPACT_SCAN_MAX_OBSERVATIONS` for larger or smaller local logs.
+`compact scan --log-file FILE` can import bounded metrics from local logs. It recognizes key/value records such as `result=failure last_api_response_total_tokens=62500` and JSON/colon-style records such as `"result":"failure"` or `"last_api_response_total_tokens":62500`. It stores compact observations, not raw log lines. By default it scans only the last `1048576` bytes of the file and imports at most `200` observations per run. Tune `PD_COMPACT_SCAN_MAX_BYTES` and `PD_COMPACT_SCAN_MAX_OBSERVATIONS` for larger or smaller local logs.

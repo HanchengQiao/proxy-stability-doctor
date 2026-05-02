@@ -22,11 +22,14 @@ pd_action_doctor() {
   pd_say "http_proxy=$(pd_redact_url "$PD_HTTP_PROXY") http_port=${PD_HTTP_PORT:-<unset>}"
   pd_say "socks_proxy=$(pd_redact_url "$PD_SOCKS_PROXY") socks_port=${PD_SOCKS_PORT:-<unset>}"
   pd_say "no_proxy=$PD_NO_PROXY"
+  pd_say "tools curl=$(pd_command_state curl) port_probe_tools=$(pd_port_probe_tool_names)"
 
   pd_print_launchctl_proxy_env
 
   if [ -n "${PD_HTTP_PORT:-}" ]; then
-    if pd_port_listening "$PD_HTTP_PORT"; then
+    if ! pd_port_probe_tools_available; then
+      pd_warn "http port check unavailable: install lsof or nc"
+    elif pd_port_listening "$PD_HTTP_PORT"; then
       pd_say "http port listening: $PD_HTTP_PORT"
     else
       pd_warn "http port not listening: $PD_HTTP_PORT"
@@ -34,7 +37,9 @@ pd_action_doctor() {
   fi
 
   if [ -n "${PD_SOCKS_PORT:-}" ]; then
-    if pd_port_listening "$PD_SOCKS_PORT"; then
+    if ! pd_port_probe_tools_available; then
+      pd_warn "socks port check unavailable: install lsof or nc"
+    elif pd_port_listening "$PD_SOCKS_PORT"; then
       pd_say "socks port listening: $PD_SOCKS_PORT"
     else
       pd_warn "socks port not listening: $PD_SOCKS_PORT"

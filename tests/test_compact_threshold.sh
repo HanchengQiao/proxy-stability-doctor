@@ -51,6 +51,17 @@ assert_contains "compact scan imported observations=1" "$out" "scan import count
 assert_contains "suggested_token_limit=50000" "$out" "scan token suggestion"
 assert_contains "suggested_byte_limit=200000" "$out" "scan byte suggestion"
 
+json_state="$tmp_dir/json-scan-state"
+json_log="$tmp_dir/json-agent.log"
+cat > "$json_log" <<'LOG'
+{"event":"context_compaction","result":"failure","last_api_response_total_tokens":62500,"failing_compaction_request_model_visible_bytes":250000}
+LOG
+
+out="$("$ROOT_DIR/bin/proxy-doctor" --state-dir "$json_state" --agent codex compact scan --log-file "$json_log")"
+assert_contains "compact scan imported observations=1" "$out" "json scan import count"
+assert_contains "suggested_token_limit=50000" "$out" "json scan token suggestion"
+assert_contains "suggested_byte_limit=200000" "$out" "json scan byte suggestion"
+
 limited_state="$tmp_dir/limited-scan-state"
 limited_log="$tmp_dir/limited-agent.log"
 cat > "$limited_log" <<'LOG'

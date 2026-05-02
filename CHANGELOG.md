@@ -9,6 +9,10 @@
 - Added compact observation and log-scan commands with bounded key/value state.
 - Added automatic writable state-directory selection with source reporting and strict validation for explicit paths.
 - Improved compact log scans with recent-tail limits, observation caps, and a single batched threshold recalculation.
+- Added runtime tool diagnostics for missing `curl`, `lsof`, and `nc`, plus safer local-only `repair --no-probes` flows.
+- Added config normalization and validation for provider names, agent aliases, ports, timeouts, log limits, and compact margins.
+- Added JSON/colon-style compact log metric scanning alongside key/value logs.
+- Hardened Falemon health checks with configurable process signals and explicit failure when no required health signal is configured.
 
 ## 0.1.0 - 2026-05-01
 

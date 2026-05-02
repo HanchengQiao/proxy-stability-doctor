@@ -2,13 +2,13 @@
 
 [![CI](https://github.com/HanchengQiao/proxy-stability-doctor/actions/workflows/ci.yml/badge.svg)](https://github.com/HanchengQiao/proxy-stability-doctor/actions/workflows/ci.yml)
 
-Proxy Stability Doctor is an adapter-first CLI for diagnosing local HTTP/SOCKS proxy health for coding agents, browsers, API clients, and other developer workflows. It is built for practical agent stability problems, including Codex or Claude Code sessions that reconnect several times before a task can actually start because the local proxy path is stale, unhealthy, or inconsistently exported. It runs guarded repair flows only when a provider exposes a safe restart surface.
+Proxy Stability Doctor is an adapter-first CLI for diagnosing local HTTP/SOCKS proxy health for coding agents, browsers, API clients, and other developer workflows. It is built for practical agent stability problems, including Codex sessions that reconnect five times in a row before a task can actually start, Claude Code reconnect loops, and other agent sessions affected by stale proxy ports, unhealthy local proxy processes, or inconsistently exported proxy environment. It runs guarded repair flows only when a provider exposes a safe restart surface.
 
 It started as a stability script for one local setup, but the open-source version treats ports, providers, probes, and restart commands as configuration. The default behavior is diagnostic. Repair remains a dry run unless the user explicitly enables restart and the selected adapter confirms preflight safety.
 
 ## Who It Is For
 
-- Codex, Claude Code, and other agent users who see repeated reconnects before a task starts and want to separate local proxy issues from upstream service issues.
+- Codex, Claude Code, and other agent users who see repeated reconnects before a task starts, including the common "five reconnects before work begins" Codex pattern, and want to separate local proxy issues from upstream service issues.
 - Developers who depend on local proxies for coding tools, browsers, API clients, or AI tooling.
 - Users whose HTTP and SOCKS ports differ from common defaults.
 - Teams that want provider-specific adapters without baking private machine paths into a shared script.
@@ -21,12 +21,15 @@ It started as a stability script for one local setup, but the open-source versio
 - Diagnostic-first `falemon` adapter that does not kill live Falemon processes by default.
 - Configurable HTTP proxy, SOCKS proxy, explicit ports, probe targets, and state directory.
 - Resilient state-directory selection with visible source reporting for restricted environments.
-- Agent profiles for generic, Codex/OpenAI, Claude/Anthropic, and custom workflows.
+- Agent profiles for generic, Codex/OpenAI, Claude Code/Anthropic, and custom workflows, with common aliases normalized.
 - `doctor`, `status`, `compact`, `repair`, and `version` commands.
 - `repair` is dry-run by default and requires both `--allow-restart` and `--apply` for live restart.
 - Post-restart verification checks adapter status and outbound probes before reporting success.
 - Learned compact-threshold suggestions from real success/failure observations instead of hard-coded limits.
-- Bounded, batched compact log scanning that reads recent metrics without storing raw log lines.
+- Bounded, batched compact log scanning that reads recent key/value or JSON-style metrics without storing raw log lines.
+- Runtime tool diagnostics for missing `curl`, `lsof`, or `nc`, with local-only fallback when outbound probes are skipped.
+- Config validation for ports, timeouts, log limits, provider names, and agent aliases.
+- Configurable Falemon process checks for machines where binary paths or process names differ.
 - Bounded diagnostic event logs with redacted proxy credentials.
 - macOS `launchctl` proxy environment visibility when available.
 - Bash test suite with mock adapters, designed to avoid touching live proxy processes.
@@ -60,14 +63,14 @@ No config is required for the first local diagnostic:
 
 ```bash
 proxy-doctor --agent codex doctor --no-probes
-proxy-doctor --agent claude doctor --no-probes
+proxy-doctor --agent claude-code doctor --no-probes
 ```
 
 To include outbound probe targets for an agent workflow:
 
 ```bash
 proxy-doctor --agent codex doctor
-proxy-doctor --agent claude doctor
+proxy-doctor --agent claude-code doctor
 ```
 
 Use a config file only when your proxy ports, provider, probe list, or restart command need to be explicit:
@@ -84,6 +87,11 @@ proxy-doctor --config proxy-doctor.env repair --allow-restart --apply
 ```
 
 If no safe restart command is configured, repair falls back to diagnostics.
+Add `--no-probes` when you want a strictly local repair verification path:
+
+```bash
+proxy-doctor --config proxy-doctor.env repair --no-probes --allow-restart --apply
+```
 
 To learn a compact threshold from actual agent behavior:
 
@@ -103,7 +111,7 @@ proxy-doctor [--config FILE] [--provider NAME] [--agent PROFILE] [--state-dir DI
 - `compact status`: print learned compact-threshold suggestions for the selected agent profile.
 - `compact observe --result success|failure [--tokens N] [--bytes N]`: record a compact observation.
 - `compact scan --log-file FILE`: import bounded compact observations from the recent tail of a local agent log without storing raw log lines.
-- `repair [--dry-run] [--allow-restart --apply] [--force]`: diagnose first, optionally restart, then verify health.
+- `repair [--dry-run] [--allow-restart --apply] [--force] [--no-probes]`: diagnose first, optionally restart, then verify health.
 - `version`: print the CLI version.
 
 ## Configuration
@@ -113,7 +121,7 @@ The CLI reads a shell-style config file with `--config FILE`. Environment variab
 Important variables:
 
 - `PD_PROVIDER`: adapter name, defaults to `custom`.
-- `PD_AGENT_PROFILE`: agent profile, defaults to `generic`. Built-ins include `codex` and `claude`.
+- `PD_AGENT_PROFILE`: agent profile, defaults to `generic`. Built-ins include `codex` and `claude-code`; aliases such as `openai`, `chatgpt`, `claude`, and `anthropic` are normalized.
 - `PD_AGENT_NAME`: optional display name for local reporting.
 - `PD_HTTP_PROXY`: HTTP proxy URL. Falls back to `HTTP_PROXY` or `http_proxy`.
 - `PD_SOCKS_PROXY`: SOCKS proxy URL. Falls back to `ALL_PROXY` or `all_proxy`.

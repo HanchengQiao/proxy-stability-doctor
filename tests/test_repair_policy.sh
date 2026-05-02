@@ -9,8 +9,7 @@ state_dir="$tmp_dir/state"
 adapter="$ROOT_DIR/tests/fixtures/mock_adapter.sh"
 
 PD_ADAPTER_PATH="$adapter" \
-PD_SKIP_NETWORK_PROBES=1 \
-"$ROOT_DIR/bin/proxy-doctor" --state-dir "$state_dir" repair > "$tmp_dir/dry-run.log"
+"$ROOT_DIR/bin/proxy-doctor" --state-dir "$state_dir" repair --no-probes > "$tmp_dir/dry-run.log"
 
 if [ -f "$state_dir/mock_restarted" ]; then
   echo "dry-run repair unexpectedly restarted" >&2
@@ -18,8 +17,7 @@ if [ -f "$state_dir/mock_restarted" ]; then
 fi
 
 PD_ADAPTER_PATH="$adapter" \
-PD_SKIP_NETWORK_PROBES=1 \
-"$ROOT_DIR/bin/proxy-doctor" --state-dir "$state_dir" repair --allow-restart --apply > "$tmp_dir/apply.log"
+"$ROOT_DIR/bin/proxy-doctor" --state-dir "$state_dir" repair --no-probes --allow-restart --apply > "$tmp_dir/apply.log"
 
 if [ ! -f "$state_dir/mock_restarted" ]; then
   echo "apply repair did not invoke adapter restart" >&2
@@ -32,4 +30,3 @@ if [ ! -f "$state_dir/mock_healthy" ]; then
 fi
 
 echo "test_repair_policy ok"
-

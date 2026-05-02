@@ -24,7 +24,10 @@ pd_adapter_status() {
   failures=0
 
   if [ -n "${PD_HTTP_PORT:-}" ]; then
-    if pd_port_listening "$PD_HTTP_PORT"; then
+    if ! pd_port_probe_tools_available; then
+      pd_warn "custom http port health unknown: install lsof or nc for local port checks"
+      failures=$((failures + 1))
+    elif pd_port_listening "$PD_HTTP_PORT"; then
       pd_say "custom http port healthy: $PD_HTTP_PORT"
     else
       pd_warn "custom http port not listening: $PD_HTTP_PORT"
@@ -36,12 +39,18 @@ pd_adapter_status() {
   fi
 
   if [ -n "${PD_SOCKS_PORT:-}" ]; then
-    if pd_port_listening "$PD_SOCKS_PORT"; then
+    if ! pd_port_probe_tools_available; then
+      pd_warn "custom socks port health unknown: install lsof or nc for local port checks"
+      failures=$((failures + 1))
+    elif pd_port_listening "$PD_SOCKS_PORT"; then
       pd_say "custom socks port healthy: $PD_SOCKS_PORT"
     else
       pd_warn "custom socks port not listening: $PD_SOCKS_PORT"
       failures=$((failures + 1))
     fi
+  elif [ -n "${PD_SOCKS_PROXY:-}" ]; then
+    pd_warn "custom socks proxy set but port could not be inferred"
+    failures=$((failures + 1))
   fi
 
   if [ -z "${PD_HTTP_PORT:-}" ] && [ -z "${PD_SOCKS_PORT:-}" ]; then
@@ -64,4 +73,3 @@ pd_adapter_restart() {
   pd_adapter_preflight || return 1
   bash -lc "$PD_RESTART_COMMAND"
 }
-

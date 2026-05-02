@@ -24,12 +24,91 @@ pd_is_positive_int() {
   esac
 }
 
+pd_command_exists() {
+  [ -n "${1:-}" ] && command -v "$1" >/dev/null 2>&1
+}
+
+pd_command_state() {
+  if pd_command_exists "${1:-}"; then
+    printf 'present\n'
+  else
+    printf 'missing\n'
+  fi
+}
+
+pd_is_valid_port() {
+  pd_port_candidate="${1:-}"
+  pd_is_positive_int "$pd_port_candidate" || return 1
+  [ "$pd_port_candidate" -ge 1 ] && [ "$pd_port_candidate" -le 65535 ]
+}
+
+pd_port_probe_tools_available() {
+  pd_command_exists lsof || pd_command_exists nc
+}
+
+pd_port_probe_tool_names() {
+  pd_tools=""
+  if pd_command_exists lsof; then
+    pd_tools="lsof"
+  fi
+  if pd_command_exists nc; then
+    if [ -n "$pd_tools" ]; then
+      pd_tools="$pd_tools,nc"
+    else
+      pd_tools="nc"
+    fi
+  fi
+  printf '%s\n' "${pd_tools:-none}"
+}
+
+pd_normalize_provider_name() {
+  pd_provider_normalized="$(printf '%s\n' "${1:-custom}" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9_-]+/-/g;s/^-+//;s/-+$//')"
+  if [ -n "$pd_provider_normalized" ]; then
+    printf '%s\n' "$pd_provider_normalized"
+  else
+    printf 'custom\n'
+  fi
+}
+
 pd_normalize_agent_profile() {
   pd_agent_profile_normalized="$(printf '%s\n' "${1:-generic}" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9_-]+/-/g;s/^-+//;s/-+$//')"
-  if [ -n "$pd_agent_profile_normalized" ]; then
-    printf '%s\n' "$pd_agent_profile_normalized"
-  else
-    printf 'generic\n'
+  case "$pd_agent_profile_normalized" in
+    ''|default|general)
+      printf 'generic\n'
+      ;;
+    openai|chatgpt|openai-codex|codex-cli|codex_cli)
+      printf 'codex\n'
+      ;;
+    claude|claude-code|claudecode|claude_code|anthropic|anthropic-claude|anthropic_claude)
+      printf 'claude-code\n'
+      ;;
+    *)
+      printf '%s\n' "$pd_agent_profile_normalized"
+      ;;
+  esac
+}
+
+pd_config_positive_int_default() {
+  pd_config_var="${1:-}"
+  pd_config_default="${2:-}"
+  [ -n "$pd_config_var" ] || return 1
+  pd_config_current="$(eval "printf '%s' \"\${$pd_config_var:-}\"")"
+  if ! pd_is_positive_int "$pd_config_current"; then
+    if [ -n "$pd_config_current" ]; then
+      pd_warn "$pd_config_var must be a positive integer; using default $pd_config_default"
+    fi
+    eval "$pd_config_var=\"\$pd_config_default\""
+  fi
+}
+
+pd_config_port_or_empty() {
+  pd_config_var="${1:-}"
+  [ -n "$pd_config_var" ] || return 1
+  pd_config_current="$(eval "printf '%s' \"\${$pd_config_var:-}\"")"
+  [ -n "$pd_config_current" ] || return 0
+  if ! pd_is_valid_port "$pd_config_current"; then
+    pd_warn "$pd_config_var must be a TCP port between 1 and 65535; ignoring value"
+    eval "$pd_config_var=\"\""
   fi
 }
 
@@ -267,7 +346,7 @@ pd_compact_append_observation() {
 
 pd_compact_result_from_line() {
   pd_compact_line="${1:-}"
-  pd_compact_result="$(printf '%s\n' "$pd_compact_line" | sed -nE 's/.*(^|[[:space:]])result=(success|failure)([[:space:]]|$).*/\2/p' | sed -n '1p')"
+  pd_compact_result="$(printf '%s\n' "$pd_compact_line" | sed -nE 's/.*"?result"?[[:space:]]*[:=][[:space:]]*"?(success|failure)"?.*/\1/p' | sed -n '1p')"
   if [ -n "$pd_compact_result" ]; then
     printf '%s\n' "$pd_compact_result"
     return 0
@@ -283,6 +362,13 @@ pd_compact_result_from_line() {
   return 1
 }
 
+pd_compact_metric_from_line() {
+  pd_compact_line="${1:-}"
+  pd_compact_names="${2:-}"
+  [ -n "$pd_compact_names" ] || return 1
+  printf '%s\n' "$pd_compact_line" | sed -nE "s/.*\"?($pd_compact_names)\"?[[:space:]]*[:=][[:space:]]*\"?([0-9]+)\"?.*/\2/p" | sed -n '1p'
+}
+
 pd_compact_scan_stream() {
   pd_compact_source="${1:-scan}"
   pd_compact_scan_max_observations="${2:-200}"
@@ -294,8 +380,8 @@ pd_compact_scan_stream() {
     printf '%s\n' "$pd_compact_line" | grep -Eiq 'compact|compaction|context' || continue
     pd_compact_result="$(pd_compact_result_from_line "$pd_compact_line" || true)"
     [ -n "$pd_compact_result" ] || continue
-    pd_compact_tokens="$(printf '%s\n' "$pd_compact_line" | sed -nE 's/.*(last_api_response_total_tokens|compact_tokens|total_tokens|tokens)=([0-9]+).*/\2/p' | sed -n '1p')"
-    pd_compact_bytes="$(printf '%s\n' "$pd_compact_line" | sed -nE 's/.*(failing_compaction_request_model_visible_bytes|compact_bytes|model_visible_bytes|visible_bytes)=([0-9]+).*/\2/p' | sed -n '1p')"
+    pd_compact_tokens="$(pd_compact_metric_from_line "$pd_compact_line" 'last_api_response_total_tokens|compact_tokens|total_tokens|tokens' || true)"
+    pd_compact_bytes="$(pd_compact_metric_from_line "$pd_compact_line" 'failing_compaction_request_model_visible_bytes|compact_bytes|model_visible_bytes|visible_bytes' || true)"
     if ! pd_is_positive_int "$pd_compact_tokens" && ! pd_is_positive_int "$pd_compact_bytes"; then
       continue
     fi
@@ -356,11 +442,11 @@ pd_lock_release() {
 
 pd_port_listening() {
   port="${1:-}"
-  pd_is_positive_int "$port" || return 1
-  if command -v lsof >/dev/null 2>&1; then
+  pd_is_valid_port "$port" || return 1
+  if pd_command_exists lsof; then
     lsof -nP -iTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1 && return 0
   fi
-  if command -v nc >/dev/null 2>&1; then
+  if pd_command_exists nc; then
     nc -z 127.0.0.1 "$port" >/dev/null 2>&1 && return 0
   fi
   return 1
@@ -369,10 +455,14 @@ pd_port_listening() {
 pd_process_ids_for_pattern() {
   pattern="${1:-}"
   [ -n "$pattern" ] || return 1
-  if command -v pgrep >/dev/null 2>&1; then
+  if pd_command_exists pgrep; then
     pgrep -f "$pattern" 2>/dev/null && return 0
   fi
-  ps -axo pid=,command= | awk -v pattern="$pattern" '$0 ~ pattern {print $1}'
+  if pd_command_exists ps; then
+    ps -axo pid=,command= | awk -v pattern="$pattern" '$0 ~ pattern {print $1}'
+    return 0
+  fi
+  return 1
 }
 
 pd_status_allowed() {
@@ -395,6 +485,7 @@ pd_http_probe() {
   url="${2:-}"
   [ -n "$proxy" ] || return 2
   [ -n "$url" ] || return 2
+  pd_command_exists curl || return 127
   curl -o /dev/null -sS -w '%{http_code} %{time_total} %{remote_ip}' \
     --connect-timeout "${PD_PROBE_CONNECT_TIMEOUT:-5}" \
     --max-time "${PD_PROBE_MAX_TIME:-15}" \
@@ -414,7 +505,7 @@ pd_probe_targets() {
         'openai models|https://api.openai.com/v1/models|200,401,403' \
         'chatgpt home|https://chatgpt.com/|200,301,302,307,308,403'
       ;;
-    claude|claude-code|claudecode|anthropic)
+    claude-code|claude|claudecode|anthropic)
       printf '%s\n' \
         'anthropic messages|https://api.anthropic.com/v1/messages|200,401,403,404,405' \
         'claude home|https://claude.ai/|200,301,302,307,308,403'
@@ -434,6 +525,12 @@ pd_run_all_probes() {
 
   if [ -z "${PD_HTTP_PROXY:-}" ]; then
     pd_warn "PD_HTTP_PROXY is unset; network probes cannot run"
+    return 1
+  fi
+
+  if ! pd_command_exists curl; then
+    pd_warn "curl is not available; network probes cannot run"
+    pd_append_event "probe_failed" "missing_tool=curl"
     return 1
   fi
 
@@ -460,5 +557,5 @@ EOF
 }
 
 pd_adapter_function_exists() {
-  command -v "$1" >/dev/null 2>&1
+  pd_command_exists "$1"
 }

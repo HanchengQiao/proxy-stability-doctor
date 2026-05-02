@@ -29,14 +29,14 @@ Commands:
                       Record a bounded compact observation.
   compact scan --log-file FILE
                       Scan a local agent log for compact observations.
-  repair [--dry-run] [--allow-restart --apply] [--force]
+  repair [--dry-run] [--allow-restart --apply] [--force] [--no-probes]
                       Diagnose and optionally repair.
   version             Print version.
 
 Global options:
   --config FILE       Source a shell-style config file.
   --provider NAME     Adapter provider name. Defaults to custom.
-  --agent PROFILE     Agent probe profile: generic, codex, claude, or custom.
+  --agent PROFILE     Agent probe profile: generic, codex, claude-code, or custom.
   --state-dir DIR     State directory override.
   -h, --help          Show help.
 
@@ -48,6 +48,7 @@ Repair flags:
   --allow-restart     Permit a provider restart if preflight passes.
   --apply             Execute restart. Without this, repair is dry-run.
   --force             Attempt repair even if current health is good.
+  --no-probes         Skip outbound network probes and require local health only.
 USAGE
 }
 

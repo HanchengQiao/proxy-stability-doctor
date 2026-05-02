@@ -20,6 +20,7 @@ pd_action_repair() {
   allow_restart=0
   apply=0
   force=0
+  skip_network_probes=0
 
   while [ "$#" -gt 0 ]; do
     case "$1" in
@@ -35,6 +36,12 @@ pd_action_repair() {
         force=1
         shift
         ;;
+      --no-probes)
+        skip_network_probes=1
+        PD_SKIP_NETWORK_PROBES=1
+        export PD_SKIP_NETWORK_PROBES
+        shift
+        ;;
       --dry-run)
         apply=0
         shift
@@ -48,7 +55,7 @@ pd_action_repair() {
   pd_lock_acquire || pd_die "could not acquire repair lock"
   trap pd_lock_release EXIT INT TERM
 
-  pd_append_event "repair_start" "provider=$PD_PROVIDER allow_restart=$allow_restart apply=$apply force=$force"
+  pd_append_event "repair_start" "provider=$PD_PROVIDER allow_restart=$allow_restart apply=$apply force=$force skip_network_probes=$skip_network_probes"
 
   if [ "$force" -eq 0 ] && pd_repair_health_check; then
     pd_say "current health is good; repair skipped"
@@ -85,4 +92,3 @@ pd_action_repair() {
   pd_append_event "repair_verify_failed" "provider=$PD_PROVIDER"
   return 1
 }
-

@@ -3,7 +3,7 @@
 The normal workflow is:
 
 1. Run a local diagnostic first; no config file is required.
-2. Pick an agent profile such as `codex` or `claude` when you want workflow-specific probes.
+2. Pick an agent profile such as `codex` or `claude-code` when you want workflow-specific probes.
 3. Add a config file only when ports, provider settings, probe files, or restart commands need to be explicit.
 4. Run `repair` as a dry run before enabling any live restart.
 5. Enable live restart only when adapter preflight and local expectations are clear.
@@ -18,14 +18,17 @@ Use an agent profile to select built-in probes for a workflow:
 
 ```bash
 proxy-doctor --agent codex doctor
-proxy-doctor --agent claude doctor
+proxy-doctor --agent claude-code doctor
 ```
+
+Common aliases such as `openai`, `chatgpt`, `claude`, and `anthropic` are accepted and normalized to the canonical profiles.
 
 This reports:
 
 - Provider and adapter capabilities.
 - Agent profile and display name.
 - Redacted HTTP/SOCKS proxy settings.
+- Runtime tool availability for `curl`, `lsof`, and `nc`.
 - Local port listening state.
 - macOS `launchctl` proxy environment when available.
 - Adapter-specific status.
@@ -50,7 +53,7 @@ proxy-doctor --config proxy-doctor.env --agent codex doctor
 proxy-doctor status
 ```
 
-`status` prints provider health, the active state directory, how that directory was selected, and the latest bounded events from the state directory. Event logs are bounded by total bytes and per-line bytes.
+`status` prints provider health, runtime tool availability, the active state directory, how that directory was selected, and the latest bounded events from the state directory. Event logs are bounded by total bytes and per-line bytes.
 
 ## Learned Compact Threshold
 
@@ -70,10 +73,10 @@ proxy-doctor --agent codex compact observe --result failure --tokens 50000 --byt
 Import observations from a local log when it contains compact-related token or visible-byte metrics:
 
 ```bash
-proxy-doctor --agent claude compact scan --log-file /path/to/agent.log
+proxy-doctor --agent claude-code compact scan --log-file /path/to/agent.log
 ```
 
-The scanner keeps only bounded key/value metrics such as result, token count, byte count, source, and timestamp. It does not persist raw log lines.
+The scanner keeps only bounded metrics such as result, token count, byte count, source, and timestamp. It recognizes both key/value logs and JSON/colon-style fields, and it does not persist raw log lines.
 
 By default, a scan reads only the recent tail of the log and imports a limited number of observations. Tune `PD_COMPACT_SCAN_MAX_BYTES` and `PD_COMPACT_SCAN_MAX_OBSERVATIONS` when you need a wider historical import.
 
@@ -109,6 +112,12 @@ To attempt repair even when current health already looks good:
 
 ```bash
 proxy-doctor --config proxy-doctor.env repair --allow-restart --apply --force
+```
+
+To keep repair verification strictly local, skip outbound probes:
+
+```bash
+proxy-doctor --config proxy-doctor.env repair --no-probes --allow-restart --apply
 ```
 
 ## Diagnostic Fallback
